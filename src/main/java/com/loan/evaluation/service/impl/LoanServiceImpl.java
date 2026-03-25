@@ -3,26 +3,27 @@ package com.loan.evaluation.service.impl;
 import com.loan.evaluation.dto.LoanApplicationRequest;
 import com.loan.evaluation.dto.LoanResponse;
 import com.loan.evaluation.entity.LoanApplication;
-import com.loan.evaluation.enums.EmploymentType;
 import com.loan.evaluation.enums.RiskBand;
 import com.loan.evaluation.repository.LoanApplicationRepository;
 import com.loan.evaluation.service.LoanService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import static com.loan.evaluation.constants.AppConstants.*;
+import static com.loan.evaluation.enums.Status.APPROVED;
+import static com.loan.evaluation.enums.Status.REJECTED;
+import static com.loan.evaluation.util.LoanCalculationUtil.*;
 
 @Service
+@RequiredArgsConstructor
 public class LoanServiceImpl implements LoanService {
 
     private final LoanApplicationRepository repository;
-
-    public LoanServiceImpl(LoanApplicationRepository repository) {
-        this.repository = repository;
-    }
-
-    private static final BigDecimal BASE_RATE = BigDecimal.valueOf(12);
 
     @Override
     public LoanResponse processApplication(LoanApplicationRequest request) {
@@ -44,22 +45,22 @@ public class LoanServiceImpl implements LoanService {
         // 4. Eligibility Checks
 
         if (applicant.getCreditScore() < 600) {
-            rejectionReasons.add("LOW_CREDIT_SCORE");
+            rejectionReasons.add(LOW_CREDIT_SCORE);
         }
 
         int ageWithTenure = applicant.getAge() + (loan.getTenureMonths() / 12);
         if (ageWithTenure > 65) {
-            rejectionReasons.add("AGE_TENURE_LIMIT_EXCEEDED");
+            rejectionReasons.add(AGE_TENURE_LIMIT_EXCEEDED);
         }
 
         BigDecimal sixtyPercentIncome = applicant.getMonthlyIncome().multiply(BigDecimal.valueOf(0.6));
         if (emi.compareTo(sixtyPercentIncome) > 0) {
-            rejectionReasons.add("EMI_EXCEEDS_60_PERCENT");
+            rejectionReasons.add(EMI_EXCEEDS_60_PERCENT);
         }
 
         BigDecimal fiftyPercentIncome = applicant.getMonthlyIncome().multiply(BigDecimal.valueOf(0.5));
         if (emi.compareTo(fiftyPercentIncome) > 0) {
-            rejectionReasons.add("EMI_EXCEEDS_50_PERCENT");
+            rejectionReasons.add(EMI_EXCEEDS_50_PERCENT);
         }
 
         UUID applicationId = UUID.randomUUID();
@@ -69,14 +70,14 @@ public class LoanServiceImpl implements LoanService {
 
             LoanApplication entity = new LoanApplication();
             entity.setApplicationId(applicationId);
-            entity.setStatus("REJECTED");
+            entity.setStatus(REJECTED.getValue());
             entity.setRejectionReasons(String.join(",", rejectionReasons));
 
             repository.save(entity);
 
             return LoanResponse.builder()
                     .applicationId(applicationId)
-                    .status("REJECTED")
+                    .status(REJECTED.getValue())
                     .rejectionReasons(rejectionReasons)
                     .build();
         }
@@ -86,7 +87,7 @@ public class LoanServiceImpl implements LoanService {
 
         LoanApplication entity = new LoanApplication();
         entity.setApplicationId(applicationId);
-        entity.setStatus("APPROVED");
+        entity.setStatus(APPROVED.getValue());
         entity.setRiskBand(riskBand.name());
         entity.setInterestRate(interestRate);
         entity.setEmi(emi);
@@ -96,7 +97,7 @@ public class LoanServiceImpl implements LoanService {
 
         return LoanResponse.builder()
                 .applicationId(applicationId)
-                .status("APPROVED")
+                .status(APPROVED.getValue())
                 .riskBand(riskBand.name())
                 .offer(LoanResponse.Offer.builder()
                         .interestRate(interestRate)
@@ -107,49 +108,4 @@ public class LoanServiceImpl implements LoanService {
                 .build();
     }
 
-    // ---------------- HELPER METHODS ----------------
-
-    private RiskBand getRiskBand(int score) {
-        if (score >= 750) return RiskBand.LOW;
-        if (score >= 650) return RiskBand.MEDIUM;
-        return RiskBand.HIGH;
-    }
-
-    private BigDecimal calculateInterestRate(RiskBand riskBand,
-                                             LoanApplicationRequest.Applicant applicant,
-                                             LoanApplicationRequest.Loan loan) {
-
-        BigDecimal rate = BASE_RATE;
-
-        // Risk premium
-        if (riskBand == RiskBand.MEDIUM) rate = rate.add(BigDecimal.valueOf(1.5));
-        if (riskBand == RiskBand.HIGH) rate = rate.add(BigDecimal.valueOf(3));
-
-        // Employment premium
-        if (applicant.getEmploymentType() == EmploymentType.SELF_EMPLOYED) {
-            rate = rate.add(BigDecimal.valueOf(1));
-        }
-
-        // Loan size premium
-        if (loan.getAmount().compareTo(BigDecimal.valueOf(1000000)) > 0) {
-            rate = rate.add(BigDecimal.valueOf(0.5));
-        }
-
-        return rate;
-    }
-
-    private BigDecimal calculateEMI(BigDecimal principal,
-                                    BigDecimal annualRate,
-                                    int tenureMonths) {
-
-        BigDecimal monthlyRate = annualRate.divide(BigDecimal.valueOf(12 * 100), 10, RoundingMode.HALF_UP);
-
-        BigDecimal onePlusRPowerN = (monthlyRate.add(BigDecimal.ONE)).pow(tenureMonths);
-
-        BigDecimal numerator = principal.multiply(monthlyRate).multiply(onePlusRPowerN);
-
-        BigDecimal denominator = onePlusRPowerN.subtract(BigDecimal.ONE);
-
-        return numerator.divide(denominator, 2, RoundingMode.HALF_UP);
-    }
 }
