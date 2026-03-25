@@ -146,6 +146,19 @@ POST /applications
 
 ---
 
+## 📄 API Documentation (Swagger)
+
+Swagger UI is available at:
+
+http://localhost:8080/swagger-ui/index.html
+
+Use Swagger UI to:
+- Explore available APIs
+- View request/response models
+- Test endpoints directly from browser
+
+---
+
 ## 🗄️ Database 
 
 - PostgreSQL used for persistence  
