@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
 @RequestMapping("/applications")
@@ -18,6 +19,8 @@ public class LoanController {
 
     private final LoanService loanService;
 
+    @Operation(summary = "Create loan application",
+            description = "Evaluates loan eligibility and returns offer")
     @PostMapping
     public ResponseEntity<LoanResponse> createApplication(
             @Valid @RequestBody LoanApplicationRequest request) {
