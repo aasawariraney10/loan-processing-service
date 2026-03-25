@@ -2,8 +2,10 @@ package com.loan.evaluation.service.impl;
 
 import com.loan.evaluation.dto.LoanApplicationRequest;
 import com.loan.evaluation.dto.LoanResponse;
+import com.loan.evaluation.entity.LoanApplication;
 import com.loan.evaluation.enums.EmploymentType;
 import com.loan.evaluation.enums.RiskBand;
+import com.loan.evaluation.repository.LoanApplicationRepository;
 import com.loan.evaluation.service.LoanService;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +15,12 @@ import java.util.*;
 
 @Service
 public class LoanServiceImpl implements LoanService {
+
+    private final LoanApplicationRepository repository;
+
+    public LoanServiceImpl(LoanApplicationRepository repository) {
+        this.repository = repository;
+    }
 
     private static final BigDecimal BASE_RATE = BigDecimal.valueOf(12);
 
@@ -58,6 +66,14 @@ public class LoanServiceImpl implements LoanService {
 
         // 5. Reject Case
         if (!rejectionReasons.isEmpty()) {
+
+            LoanApplication entity = new LoanApplication();
+            entity.setApplicationId(applicationId);
+            entity.setStatus("REJECTED");
+            entity.setRejectionReasons(String.join(",", rejectionReasons));
+
+            repository.save(entity);
+
             return LoanResponse.builder()
                     .applicationId(applicationId)
                     .status("REJECTED")
@@ -67,6 +83,16 @@ public class LoanServiceImpl implements LoanService {
 
         // 6. Approve Case
         BigDecimal totalPayable = emi.multiply(BigDecimal.valueOf(loan.getTenureMonths()));
+
+        LoanApplication entity = new LoanApplication();
+        entity.setApplicationId(applicationId);
+        entity.setStatus("APPROVED");
+        entity.setRiskBand(riskBand.name());
+        entity.setInterestRate(interestRate);
+        entity.setEmi(emi);
+        entity.setTotalPayable(totalPayable);
+
+        repository.save(entity);
 
         return LoanResponse.builder()
                 .applicationId(applicationId)
