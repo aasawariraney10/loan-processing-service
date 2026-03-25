@@ -167,4 +167,11 @@ src/main/resources/db/migration
 - Utility class for calculation logic  
 - Constants used for rejection reasons  
 - Centralized exception handling using @RestControllerAdvice  
+
 ---
+
+## 🧪 Testing
+
+- Unit tests implemented using JUnit and Mockito
+- Service layer tested for eligibility and business rules
+- Controller layer tested using MockMvc

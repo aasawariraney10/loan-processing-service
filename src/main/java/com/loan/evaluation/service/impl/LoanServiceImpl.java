@@ -54,12 +54,14 @@ public class LoanServiceImpl implements LoanService {
         }
 
         BigDecimal sixtyPercentIncome = applicant.getMonthlyIncome().multiply(BigDecimal.valueOf(0.6));
+        BigDecimal fiftyPercentIncome = applicant.getMonthlyIncome().multiply(BigDecimal.valueOf(0.5));
+
+        // Eligibility rule
         if (emi.compareTo(sixtyPercentIncome) > 0) {
             rejectionReasons.add(EMI_EXCEEDS_60_PERCENT);
         }
-
-        BigDecimal fiftyPercentIncome = applicant.getMonthlyIncome().multiply(BigDecimal.valueOf(0.5));
-        if (emi.compareTo(fiftyPercentIncome) > 0) {
+        // Offer rule (only if not already rejected by 60% rule)
+        else if (emi.compareTo(fiftyPercentIncome) > 0) {
             rejectionReasons.add(EMI_EXCEEDS_50_PERCENT);
         }
 
@@ -78,6 +80,7 @@ public class LoanServiceImpl implements LoanService {
             return LoanResponse.builder()
                     .applicationId(applicationId)
                     .status(REJECTED.getValue())
+                    .riskBand(null)
                     .rejectionReasons(rejectionReasons)
                     .build();
         }
